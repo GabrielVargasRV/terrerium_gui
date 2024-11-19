@@ -1,0 +1,56 @@
+
+
+
+export const humidityData = [
+    { name: "00:00", amt: 1, humidity: 80 },
+    { name: "01:00", amt: 2, humidity: 82 },
+    { name: "02:00", amt: 3, humidity: 83 },
+    { name: "03:00", amt: 4, humidity: 85 },
+    { name: "04:00", amt: 5, humidity: 86 },
+    { name: "05:00", amt: 6, humidity: 87 },
+    { name: "06:00", amt: 7, humidity: 88 },
+    { name: "07:00", amt: 8, humidity: 86 },
+    { name: "08:00", amt: 9, humidity: 84 },
+    { name: "09:00", amt: 10, humidity: 82 },
+    { name: "10:00", amt: 11, humidity: 80 },
+    { name: "11:00", amt: 12, humidity: 78 },
+    { name: "12:00", amt: 13, humidity: 75 },
+    { name: "13:00", amt: 14, humidity: 73 },
+    { name: "14:00", amt: 15, humidity: 70 },
+    { name: "15:00", amt: 16, humidity: 68 },
+    { name: "16:00", amt: 17, humidity: 66 },
+    { name: "17:00", amt: 18, humidity: 68 },
+    { name: "18:00", amt: 19, humidity: 70 },
+    { name: "19:00", amt: 20, humidity: 72 },
+    { name: "20:00", amt: 21, humidity: 74 },
+    { name: "21:00", amt: 22, humidity: 76 },
+    { name: "22:00", amt: 23, humidity: 78 },
+    { name: "23:00", amt: 24, humidity: 80 }
+];
+
+export const temperatureData = [
+    { name: "00:00", amt: 1, temp: 68 },
+    { name: "01:00", amt: 2, temp: 67 },
+    { name: "02:00", amt: 3, temp: 66 },
+    { name: "03:00", amt: 4, temp: 65 },
+    { name: "04:00", amt: 5, temp: 64 },
+    { name: "05:00", amt: 6, temp: 63 },
+    { name: "06:00", amt: 7, temp: 62 },
+    { name: "07:00", amt: 8, temp: 64 },
+    { name: "08:00", amt: 9, temp: 66 },
+    { name: "09:00", amt: 10, temp: 68 },
+    { name: "10:00", amt: 11, temp: 70 },
+    { name: "11:00", amt: 12, temp: 72 },
+    { name: "12:00", amt: 13, temp: 74 },
+    { name: "13:00", amt: 14, temp: 76 },
+    { name: "14:00", amt: 15, temp: 78 },
+    { name: "15:00", amt: 16, temp: 79 },
+    { name: "16:00", amt: 17, temp: 80 },
+    { name: "17:00", amt: 18, temp: 79 },
+    { name: "18:00", amt: 19, temp: 77 },
+    { name: "19:00", amt: 20, temp: 75 },
+    { name: "20:00", amt: 21, temp: 73 },
+    { name: "21:00", amt: 22, temp: 71 },
+    { name: "22:00", amt: 23, temp: 69 },
+    { name: "23:00", amt: 24, temp: 68 }
+];

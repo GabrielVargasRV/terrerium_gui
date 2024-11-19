@@ -1,0 +1,36 @@
+
+.button {
+    display: grid;
+    height: auto;
+
+    grid-template-columns: 70% 30%;
+    background-color: #ffffff;
+    height: 140px;
+    border: 1px solid #E0E0E0;
+
+    -webkit-box-shadow: -1px 0px 72px -46px rgba(0,0,0,0.41);
+    -moz-box-shadow: -1px 0px 72px -46px rgba(0,0,0,0.41);
+    box-shadow: -1px 0px 72px -46px rgba(0,0,0,0.41);
+
+    margin: 0;
+    padding: 0;
+}
+
+.button div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: #000000;
+}
+
+.button .off {
+    background-color: #dd0426;
+    border-radius: 0 5px 5px 0;
+}
+
+.button .on {
+    background-color: #80b918;
+    border-radius: 0 5px 5px 0;
+}
+
