@@ -389,8 +389,10 @@ void waterPlants() { // <-- Added for auto mode
 // 1. Open the Arduino IDE.
 // 2. Upload the main.cpp code to your Arduino board.
 // 3. Open the Serial Monitor to get the IP address of the Arduino.
+
 // Update React Code:
 // 1. Replace <Arduino_IP_Address> in ArduinoData.jsx with the actual IP address of your Arduino.
+
 // Run the React Application:
 // 1. Navigate to the terrerium_gui directory.
 // 2. Install the dependencies using npm install.
