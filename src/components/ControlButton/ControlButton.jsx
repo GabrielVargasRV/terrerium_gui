@@ -15,22 +15,16 @@ const ControlButton = ({ name, id, status }) => {
 
     const post = async (newState) => {
         let action = newState ? 'turn_on' : 'turn_off';
-        let res = false;
 
         try {
-            const response = await axios.post(`http://${arduinoIp}/${id}`, {
-                actuator: id,
+            const response = await axios.post(`${arduinoIp}/${id}`, {
                 action: action,
             });
-
-            console.log(response);
-            res = true;
-        } catch(error) {
-            console.log(error);
-            res = false;
+            return true;
+        } catch (error) {
+            console.error(error);
+            return false;
         }
-
-        return res;
     }
 
     return (
