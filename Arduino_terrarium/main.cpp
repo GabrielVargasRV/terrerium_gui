@@ -1,21 +1,25 @@
 // PLEASE NOTE THAT YOU MUST HAVE THE FOLLOWING LIBRARIES INSTALLED
-// 1. WiFiS3
+//  WiFiS3
 //    - Open the Arduino IDE
 //    - Go to Sketch > Include Library > Manage Libraries...
 //    - Search for "WiFiS3" and install it
-// 2. Arduino.h (This is a built-in library)
-// 3. ArduinoJson
+//  Arduino.h (This is a built-in library)
+//  ArduinoJson
 //    - Open the Arduino IDE
 //    - Go to Sketch > Include Library > Manage Libraries...
 //    - Search for "ArduinoJson" and install it
-// 4. Adafruit Unified Sensor
+//  Adafruit Unified Sensor
 //    - Open the Arduino IDE
 //    - Go to Sketch > Include Library > Manage Libraries...
 //    - Search for "Adafruit Unified Sensor" and install it
-// 5. DHT sensor library
+//  DHT sensor library
 //    - Open the Arduino IDE
 //    - Go to Sketch > Include Library > Manage Libraries...
 //    - Search for "DHT sensor library" and install it
+
+// To get the Arduino IP address, open the Serial Monitor in the Arduino IDE after uploading the code.
+// IP address will be printed as "IP Address: xxx.xxx.xxx.xxx".
+// Use this IP address in the React GUI by replacing <Arduino_IP_Address> in the ArduinoData.jsx file.
 
 #include <WiFiS3.h>
 #include <Arduino.h>
