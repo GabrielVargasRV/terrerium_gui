@@ -1,25 +1,7 @@
 // PLEASE NOTE THAT YOU MUST HAVE THE FOLLOWING LIBRARIES INSTALLED
-//  WiFiS3
 //    - Open the Arduino IDE
 //    - Go to Sketch > Include Library > Manage Libraries...
-//    - Search for "WiFiS3" and install it
-//  Arduino.h (This is a built-in library)
-//  ArduinoJson
-//    - Open the Arduino IDE
-//    - Go to Sketch > Include Library > Manage Libraries...
-//    - Search for "ArduinoJson" and install it
-//  Adafruit Unified Sensor
-//    - Open the Arduino IDE
-//    - Go to Sketch > Include Library > Manage Libraries...
-//    - Search for "Adafruit Unified Sensor" and install it
-//  DHT sensor library
-//    - Open the Arduino IDE
-//    - Go to Sketch > Include Library > Manage Libraries...
-//    - Search for "DHT sensor library" and install it
-
-// To get the Arduino IP address, open the Serial Monitor in the Arduino IDE after uploading the code.
-// IP address will be printed as "IP Address: xxx.xxx.xxx.xxx".
-// Use this IP address in the React GUI by replacing <Arduino_IP_Address> in the ArduinoData.jsx file.
+//    - Search for "WiFiS3 , Arduino.h, ArduinoJson, Adafruit unified sensor, DHT_U.h and DHT.h" and install it
 
 #include <WiFiS3.h>
 #include <Arduino.h>
@@ -60,6 +42,11 @@ int temperature_humidity_GPIO = A1;
 // Initialize DHT 
 DHT dht(DHTPIN, DHTTYPE);
 
+// ------ AUTO MODE VARIABLES ------
+unsigned long previousMillis = 0; // <-- Added for auto mode timing
+const long interval = 1000; // Interval for checking time (1 second)
+bool autoMode = true; // Auto mode enabled
+
 void setup() {
   Serial.begin(115200);
 
@@ -73,7 +60,7 @@ void setup() {
 
   Serial.println("Connected to WiFi");
   Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
+  Serial.println(WiFi.localIP()); // <-- This line prints the IP address
   server.begin(); // <-- Added to start the server
 
   // -- ACTUATORS --
@@ -84,10 +71,37 @@ void setup() {
   pinMode(pump_GPIO, OUTPUT);
 
   // Initialize DHT sensor
-  dht.begin(); // <-- Added to initialize the DHT sensor
+  dht.begin(); 
 }
 
 void loop() {
+  unsigned long currentMillis = millis(); // <-- Added for auto mode timing
+
+  // Auto mode logic
+  if (autoMode) { 
+    // Check if it's time to update
+    if (currentMillis - previousMillis >= interval) { 
+      previousMillis = currentMillis; 
+
+      // Get the current time
+      int currentHour = (currentMillis / 3600000) % 24; // Convert millis to hours
+
+      // Control lights (12 hours on, 12 hours off)
+      if (currentHour >= 6 && currentHour < 18) { 
+        turnOnLight1(); 
+        turnOnLight2(); 
+      } else {
+        turnOffLight1(); 
+        turnOffLight2(); 
+      }
+
+      // Water plants once a day at 7 AM
+      if (currentHour == 7 && !pump_status) { 
+        waterPlants(); 
+      }
+    }
+  }
+
   WiFiClient client = server.available(); // <-- Added to check if a client has connected
   if (client) {
     Serial.println("New Client.");
@@ -350,18 +364,35 @@ void turnOffLight2() {
   light2_status = false;
 }
 
-void turnOnPump() {
+void turnOnPump() { // <-- Added for auto mode
   digitalWrite(pump_GPIO, HIGH);
   pump_status = true;
 }
 
-void turnOffPump() {
+void turnOffPump() { // <-- Added for auto mode
   digitalWrite(pump_GPIO, LOW);
   pump_status = false;
 }
 
-void waterPlants() {
+void waterPlants() { // <-- Added for auto mode
   turnOnPump();
   delay(1500);
   turnOffPump();
 }
+
+// To get the Arduino IP address, open the Serial Monitor in the Arduino IDE after uploading the code.
+// The IP address will be printed as "IP Address: xxx.xxx.xxx.xxx".
+// Use this IP address in the React GUI by replacing <Arduino_IP_Address> in the ArduinoData.jsx file.
+
+// Running the Code
+// Upload the Arduino Code:
+// 1. Open the Arduino IDE.
+// 2. Upload the main.cpp code to your Arduino board.
+// 3. Open the Serial Monitor to get the IP address of the Arduino.
+// Update React Code:
+// 1. Replace <Arduino_IP_Address> in ArduinoData.jsx with the actual IP address of your Arduino.
+// Run the React Application:
+// 1. Navigate to the terrerium_gui directory.
+// 2. Install the dependencies using npm install.
+// 3. Start the development server using npm run dev.
+// 4. Open your browser and go to http://localhost:3000.
