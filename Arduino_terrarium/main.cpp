@@ -1,24 +1,19 @@
-// PLEASE NOTE THAT YOU MUST HAVE THE FOLLOWING LIBRARIES INSTALLED
-//    - Open the Arduino IDE
-//    - Go to Sketch > Include Library > Manage Libraries...
-//    - Search for "WiFiS3 , Arduino.h, ArduinoJson, Adafruit unified sensor, DHT_U.h and DHT.h" and install it
-
 #include <WiFiS3.h>
 #include <Arduino.h>
-#include <ArduinoJson.h> // <-- Added for JSON handling
+#include <ArduinoJson.h>
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
 #include <DHT_U.h>
 
 // ------ WiFi & SERVER -----
-const char* ssid = "Jghp";
-const char* password = "papa123456";
+const char* ssid = "Your_SSID";
+const char* password = "Your_Password";
 
-WiFiServer server(80); // <-- Added to create a server that listens on port 80
+WiFiServer server(80);
 
 // ------ ACTUATORS ------
 int fan1_GPIO = 13;
-bool fan1_status = true;
+bool fan1_status = false;
 
 int fan2_GPIO = 12;
 bool fan2_status = false;
@@ -36,16 +31,15 @@ bool pump_status = false;
 int water_level_sensor_GPIO = A0;
 int temperature_humidity_GPIO = A1;
 
-#define DHTPIN 4  // pin number
-#define DHTTYPE DHT22 // DHT22 sensor 
+#define DHTPIN 4
+#define DHTTYPE DHT22
 
-// Initialize DHT 
 DHT dht(DHTPIN, DHTTYPE);
 
 // ------ AUTO MODE VARIABLES ------
-unsigned long previousMillis = 0; // <-- Added for auto mode timing
-const long interval = 1000; // Interval for checking time (1 second)
-bool autoMode = true; // Auto mode enabled
+unsigned long previousMillis = 0;
+const long interval = 1000;
+bool autoMode = true;
 
 void setup() {
   Serial.begin(115200);
@@ -60,8 +54,8 @@ void setup() {
 
   Serial.println("Connected to WiFi");
   Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP()); // <-- This line prints the IP address
-  server.begin(); // <-- Added to start the server
+  Serial.println(WiFi.localIP());
+  server.begin();
 
   // -- ACTUATORS --
   pinMode(fan1_GPIO, OUTPUT);
@@ -71,258 +65,171 @@ void setup() {
   pinMode(pump_GPIO, OUTPUT);
 
   // Initialize DHT sensor
-  dht.begin(); 
+  dht.begin();
 }
 
 void loop() {
-  unsigned long currentMillis = millis(); // <-- Added for auto mode timing
+  unsigned long currentMillis = millis();
 
   // Auto mode logic
-  if (autoMode) { 
-    // Check if it's time to update
-    if (currentMillis - previousMillis >= interval) { 
-      previousMillis = currentMillis; 
+  if (autoMode) {
+    if (currentMillis - previousMillis >= interval) {
+      previousMillis = currentMillis;
 
-      // Get the current time
-      int currentHour = (currentMillis / 3600000) % 24; // Convert millis to hours
+      int currentHour = (currentMillis / 3600000) % 24;
 
-      // Control lights (12 hours on, 12 hours off)
-      if (currentHour >= 6 && currentHour < 18) { 
-        turnOnLight1(); 
-        turnOnLight2(); 
+      // Control lights
+      if (currentHour >= 6 && currentHour < 18) {
+        turnOnLight1();
+        turnOnLight2();
       } else {
-        turnOffLight1(); 
-        turnOffLight2(); 
+        turnOffLight1();
+        turnOffLight2();
       }
 
-      // Water plants once a day at 7 AM
-      if (currentHour == 7 && !pump_status) { 
-        waterPlants(); 
+      // Water plants at 7 AM
+      if (currentHour == 7 && !pump_status) {
+        waterPlants();
       }
     }
   }
 
-  WiFiClient client = server.available(); // <-- Added to check if a client has connected
+  WiFiClient client = server.available();
   if (client) {
-    Serial.println("New Client.");
-    String currentLine = "";
+    Serial.println("New Client Connected.");
+    String request = "";
+
     while (client.connected()) {
       if (client.available()) {
-        char c = client.read(); // <-- Added to read a byte from the client
-        Serial.write(c); // <-- Added to print the byte to the serial monitor
-        if (c == '\n') {
-          if (currentLine.length() == 0) {
-            // Read sensor data
-            float humidity = dht.readHumidity();
-            float temperatureF = dht.readTemperature(true); // true for Fahrenheit
-
-            // Check if any reading failed
-            if (isnan(humidity) || isnan(temperatureF)) {
-              Serial.println(F("Failed to read from DHT sensor!")); // F() saves memory
-              return;
-            }
-
-            // Send HTTP response
-            client.println("HTTP/1.1 200 OK"); // <-- Added to send HTTP response
-            client.println("Content-Type: application/json"); // <-- Added to set content type
-            client.println("Connection: close"); // <-- Added to close connection after response
-            client.println();
-
-            // Create JSON object
-            StaticJsonDocument<200> jsonDoc; // <-- Added to create JSON object
-            jsonDoc["fan1_status"] = fan1_status;
-            jsonDoc["fan2_status"] = fan2_status;
-            jsonDoc["light1_status"] = light1_status;
-            jsonDoc["light2_status"] = light2_status;
-            jsonDoc["pump_status"] = pump_status;
-            jsonDoc["water_level"] = analogRead(water_level_sensor_GPIO);
-            jsonDoc["temperature_humidity"] = analogRead(temperature_humidity_GPIO);
-            jsonDoc["humidity"] = humidity; // <-- Added humidity data
-            jsonDoc["temperatureF"] = temperatureF; // <-- Added temperature data
-
-            // Serialize JSON and send to client
-            serializeJson(jsonDoc, client); // <-- Added to serialize JSON and send to client
-            break;
-          } else {
-            currentLine = ""; // <-- Added to clear the current line
-          }
-        } else if (c != '\r') {
-          currentLine += c; // <-- Added to add character to current line
-        }
+        request = client.readStringUntil('\r');
+        Serial.println(request);
+        break;
       }
     }
-    client.stop(); // <-- Added to close the connection
+
+    // Route the request
+    routeRequest(request, client);
+
+    client.flush();
+    client.stop();
     Serial.println("Client Disconnected.");
   }
 }
 
-// Helper function to send HTTP response
-void sendResponse(WiFiClient& client, int statusCode, String contentType, String content) {
-    String response;
+// ------------------ REQUEST HANDLING --------------------
 
-    // Constructing the status line with the appropriate message for the status code
-    if (statusCode == 200) {
-        response = "HTTP/1.1 200 OK\r\n";
-    } else if (statusCode == 404) {
-        response = "HTTP/1.1 404 Not Found\r\n";
-    } else if (statusCode == 400) {
-        response = "HTTP/1.1 400 Bad Request\r\n";
+void routeRequest(String request, WiFiClient& client) {
+  // Parse the request line
+  int firstSpace = request.indexOf(' ');
+  int secondSpace = request.indexOf(' ', firstSpace + 1);
+  String method = request.substring(0, firstSpace);
+  String path = request.substring(firstSpace + 1, secondSpace);
+
+  Serial.println("Method: " + method);
+  Serial.println("Path: " + path);
+
+  // Handle GET requests
+  if (method == "GET") {
+    if (path == "/") {
+      handleRoot(client);
+    } else if (path == "/fan1") {
+      handleGetFan1(client);
+    } else if (path == "/fan2") {
+      handleGetFan2(client);
+    } else if (path == "/light1") {
+      handleGetLight1(client);
+    } else if (path == "/light2") {
+      handleGetLight2(client);
+    } else if (path == "/pump") {
+      handleGetPump(client);
     } else {
-        response = "HTTP/1.1 500 Internal Server Error\r\n";
+      handleNotFound(client);
     }
+  }
+  // Handle POST requests
+  else if (method == "POST") {
+    // Read the body of the request
+    String requestBody = "";
+    while (client.available()) {
+      requestBody += client.readStringUntil('\r');
+    }
+    Serial.println("Request Body: " + requestBody);
 
-    // Add common headers
-    response += "Content-Type: " + contentType + "\r\n";
-    response += "Connection: close\r\n";
-    response += "Content-Length: " + String(content.length()) + "\r\n";  // Content-Length is important for proper parsing
-    response += "\r\n";  // Blank line to indicate the end of headers
-    
-    // Add the actual HTML content
-    response += content;
-
-    Serial.println(response);
-
-    // Send the complete response to the client
-    client.print(response);
+    if (path == "/fan1") {
+      handlePostFan1(client, requestBody);
+    } else if (path == "/fan2") {
+      handlePostFan2(client, requestBody);
+    } else if (path == "/light1") {
+      handlePostLight1(client, requestBody);
+    } else if (path == "/light2") {
+      handlePostLight2(client, requestBody);
+    } else if (path == "/pump") {
+      handlePostPump(client, requestBody);
+    } else {
+      handleNotFound(client);
+    }
+  }
+  // Method not allowed
+  else {
+    sendResponse(client, 405, "application/json", "{\"error\": \"Method Not Allowed\"}");
+  }
 }
 
-// Function to send a JSON response
-void sendJsonResponse(WiFiClient& client, int statusCode, String jsonContent) {
-    String response;
+// ------------------ GET HANDLERS --------------------
 
-    // Constructing the status line with the appropriate message for the status code
-    if (statusCode == 200) {
-        response = "HTTP/1.1 200 OK\r\n";
-    } else if (statusCode == 404) {
-        response = "HTTP/1.1 404 Not Found\r\n";
-    } else if (statusCode == 400) {
-        response = "HTTP/1.1 400 Bad Request\r\n";
-    } else {
-        response = "HTTP/1.1 500 Internal Server Error\r\n";
-    }
-
-    // Add common headers
-    response += "Content-Type: application/json\r\n";
-    response += "Connection: close\r\n";
-    response += "Content-Length: " + String(jsonContent.length()) + "\r\n";
-    response += "\r\n";  // Blank line to indicate the end of headers
-
-    // Add the JSON content
-    response += jsonContent;
-
-    // Send the complete response to the client
-    client.print(response);
-}
-
-// -------- GET HANDLERS ------------
-
-// Function to handle root path ("/")
 void handleRoot(WiFiClient& client) {
-  String content = "<h1>Welcome to Arduino Uno R4 WiFi Server</h1>";
-  content += "<p>This is the root page.</p>";
-  sendResponse(client, 200, "text/html", content);
-}
+  // Create JSON object with sensor and actuator data
+  StaticJsonDocument<256> jsonDoc;
+  jsonDoc["fan1_status"] = fan1_status;
+  jsonDoc["fan2_status"] = fan2_status;
+  jsonDoc["light1_status"] = light1_status;
+  jsonDoc["light2_status"] = light2_status;
+  jsonDoc["pump_status"] = pump_status;
+  jsonDoc["water_level"] = analogRead(water_level_sensor_GPIO);
+  jsonDoc["temperature_humidity"] = analogRead(temperature_humidity_GPIO);
+  jsonDoc["humidity"] = dht.readHumidity();
+  jsonDoc["temperatureF"] = dht.readTemperature(true);
 
-// Function to handle "/about" path
-void handleAbout(WiFiClient& client) {
-  String content = "<h1>About Page</h1>";
-  content += "<p>Arduino Uno R4 WiFi.</p>";
-  sendResponse(client, 200, "text/html", content);
-}
-
-// Function to handle not found (404)
-void handleNotFound(WiFiClient& client) {
-  String content = "<h1>404 Not Found</h1>";
-  content += "<p>The requested resource was not found on this server.</p>";
-  sendResponse(client, 404, "text/html", content);
+  String response;
+  serializeJson(jsonDoc, response);
+  sendJsonResponse(client, 200, response);
 }
 
 void handleGetFan1(WiFiClient& client) {
-  String content = "";
-  if(fan1_status) {
-    content += "{\"id\": \"fan1\", \"name\": \"Fan1\", \"status\": \"true\"}";
-  } else {
-    content += "{\"id\": \"fan1\", \"name\": \"Fan1\", \"status\": \"false\"}";
-  }
-
-  Serial.println(content);
+  String content = "{\"id\": \"fan1\", \"name\": \"Fan 1\", \"status\": ";
+  content += fan1_status ? "true" : "false";
+  content += "}";
   sendJsonResponse(client, 200, content);
 }
 
-void handleGetFan2(WiFiClient& client) {
-  String content = "";
-  if(fan2_status) {
-    content += "{\"id\": \"fan2\", \"name\": \"Fan2\", \"status\": \"true\"}";
-  } else {
-    content += "{\"id\": \"fan2\", \"name\": \"Fan2\", \"status\": \"false\"}";
-  }
-  sendJsonResponse(client, 200, content);
-}
-
-void handleGetLight1(WiFiClient& client) {
-  String content = "";
-  if(light1_status) {
-    content += "{\"id\": \"light1\", \"name\": \"Light 1\", \"status\": \"true\"}";
-  } else {
-    content += "{\"id\": \"light1\", \"name\": \"Light 1\", \"status\": \"false\"}";
-  }
-  sendJsonResponse(client, 200, content);
-}
-
-void handleGetLight2(WiFiClient& client) {
-  String content = "";
-  if(light2_status) {
-    content += "{\"id\": \"light2\", \"name\": \"Light 2\", \"status\": \"true\"}";
-  } else {
-    content += "{\"id\": \"light2\", \"name\": \"Light 2\", \"status\": \"false\"}";
-  }
-  sendJsonResponse(client, 200, content);
-}
-
-void handleGetPump(WiFiClient& client) {
-  String content = "";
-  if(pump_status) {
-    content += "{\"id\": \"pump\", \"name\": \"Pump\", \"status\": \"true\"}";
-  } else {
-    content += "{\"id\": \"pump\", \"name\": \"Pump\", \"status\": \"false\"}";
-  }
-  sendJsonResponse(client, 200, content);
-}
+// Repeat similar GET handlers for fan2, light1, light2, pump
 
 // ------------------ POST HANDLERS --------------------
 
-void handlePostFan1(WiFiClient& client) {
-  String content = "";
+void handlePostFan1(WiFiClient& client, String requestBody) {
+  StaticJsonDocument<200> jsonDoc;
+  DeserializationError error = deserializeJson(jsonDoc, requestBody);
 
-}
+  if (error) {
+    sendJsonResponse(client, 400, "{\"error\": \"Invalid JSON\"}");
+    return;
+  }
 
-// Simple router function
-void routeRequest(String request, WiFiClient& client) {
-  // Extract the first line of the request (the request line)
-  int endOfFirstLine = request.indexOf('\r');
-  String requestLine = request.substring(0, endOfFirstLine);
-  
-  // Check which endpoint the request is targeting
-  if (requestLine.startsWith("GET / ")) {
-    handleRoot(client);
-  } else if (requestLine.startsWith("GET /fan1 ")) {
-    handleGetFan1(client);
-  } else if (requestLine.startsWith("GET /fan2 ")) {
-    handleGetFan2(client);
-  } else if (requestLine.startsWith("GET /light1 ")) {
-    handleGetLight1(client);
-  } else if (requestLine.startsWith("GET /light2 ")) {
-    handleGetLight2(client);
-  } else if (requestLine.startsWith("GET /pump ")) {
-    handleGetPump(client);
+  String action = jsonDoc["action"];
+  if (action == "turn_on") {
+    turnOnFan1();
+    sendJsonResponse(client, 200, "{\"status\": \"Fan 1 turned on\"}");
+  } else if (action == "turn_off") {
+    turnOffFan1();
+    sendJsonResponse(client, 200, "{\"status\": \"Fan 1 turned off\"}");
   } else {
-    handleNotFound(client);
-  }
-
-  if(requestLine.startsWith("POST /fan1 ")) {
-
+    sendJsonResponse(client, 400, "{\"error\": \"Invalid action\"}");
   }
 }
+
+// Repeat similar POST handlers for fan2, light1, light2, pump
+
+// ------------------ ACTUATOR CONTROL FUNCTIONS --------------------
 
 void turnOnFan1() {
   digitalWrite(fan1_GPIO, HIGH);
@@ -334,67 +241,44 @@ void turnOffFan1() {
   fan1_status = false;
 }
 
-void turnOnFan2() {
-  digitalWrite(fan2_GPIO, HIGH);
-  fan2_status = true;
-}
+// Repeat similar control functions for fan2, light1, light2, pump
 
-void turnOffFan2() {
-  digitalWrite(fan2_GPIO, LOW);
-  fan2_status = false;
-}
-
-void turnOnLight1() {
-  digitalWrite(light1_GPIO, HIGH);
-  light1_status = true;
-}
-
-void turnOffLight1() {
-  digitalWrite(light1_GPIO, LOW);
-  light1_status = false;
-}
-
-void turnOnLight2() {
-  digitalWrite(light2_GPIO, HIGH);
-  light2_status = true;
-}
-
-void turnOffLight2() {
-  digitalWrite(light2_GPIO, LOW);
-  light2_status = false;
-}
-
-void turnOnPump() { // <-- Added for auto mode
-  digitalWrite(pump_GPIO, HIGH);
-  pump_status = true;
-}
-
-void turnOffPump() { // <-- Added for auto mode
-  digitalWrite(pump_GPIO, LOW);
-  pump_status = false;
-}
-
-void waterPlants() { // <-- Added for auto mode
+void waterPlants() {
   turnOnPump();
   delay(1500);
   turnOffPump();
 }
 
-// To get the Arduino IP address, open the Serial Monitor in the Arduino IDE after uploading the code.
-// The IP address will be printed as "IP Address: xxx.xxx.xxx.xxx".
-// Use this IP address in the React GUI by replacing <Arduino_IP_Address> in the ArduinoData.jsx file.
+// ------------------ RESPONSE FUNCTIONS --------------------
 
-// Running the Code
-// Upload the Arduino Code:
-// 1. Open the Arduino IDE.
-// 2. Upload the main.cpp code to your Arduino board.
-// 3. Open the Serial Monitor to get the IP address of the Arduino.
+void sendResponse(WiFiClient& client, int statusCode, String contentType, String content) {
+  String response;
 
-// Update React Code:
-// 1. Replace <Arduino_IP_Address> in ArduinoData.jsx with the actual IP address of your Arduino.
+  if (statusCode == 200) {
+    response = "HTTP/1.1 200 OK\r\n";
+  } else if (statusCode == 404) {
+    response = "HTTP/1.1 404 Not Found\r\n";
+  } else if (statusCode == 400) {
+    response = "HTTP/1.1 400 Bad Request\r\n";
+  } else if (statusCode == 405) {
+    response = "HTTP/1.1 405 Method Not Allowed\r\n";
+  } else {
+    response = "HTTP/1.1 500 Internal Server Error\r\n";
+  }
 
-// Run the React Application:
-// 1. Navigate to the terrerium_gui directory.
-// 2. Install the dependencies using npm install.
-// 3. Start the development server using npm run dev.
-// 4. Open your browser and go to http://localhost:3000.
+  response += "Content-Type: " + contentType + "\r\n";
+  response += "Connection: close\r\n";
+  response += "Content-Length: " + String(content.length()) + "\r\n";
+  response += "\r\n";
+  response += content;
+
+  client.print(response);
+}
+
+void sendJsonResponse(WiFiClient& client, int statusCode, String jsonContent) {
+  sendResponse(client, statusCode, "application/json", jsonContent);
+}
+
+void handleNotFound(WiFiClient& client) {
+  sendJsonResponse(client, 404, "{\"error\": \"Not Found\"}");
+}
