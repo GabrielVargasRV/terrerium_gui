@@ -1,0 +1,22 @@
+
+
+.container {
+    border: 1px solid #E0E0E0;
+    border-radius: 5px;
+
+    -webkit-box-shadow: -1px 0px 72px -46px rgba(0,0,0,0.41);
+    -moz-box-shadow: -1px 0px 72px -46px rgba(0,0,0,0.41);
+    box-shadow: -1px 0px 72px -46px rgba(0,0,0,0.41);
+}
+
+.header {
+    margin: 10px;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.title {
+    font-size: 18px;
+    text-align: start;
+    padding: 0;
+    margin: 5px 0;
+}
