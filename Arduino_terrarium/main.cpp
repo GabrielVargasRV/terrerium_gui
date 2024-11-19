@@ -6,8 +6,8 @@
 #include <DHT_U.h>
 
 // ------ WiFi & SERVER -----
-const char* ssid = "Your_SSID";
-const char* password = "Your_Password";
+const char* ssid = "jghp";
+const char* password = "papa123456";
 
 WiFiServer server(80);
 
